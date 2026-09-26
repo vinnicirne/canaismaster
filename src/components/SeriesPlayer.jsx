@@ -5,11 +5,11 @@ import { playerUrlFromItem } from '../api';
 import './SeriesPlayer.css';
 
 function buildEpisodeUrl(tmdbId, season, episode) {
-  const base = `https://embed.warezcdn.link/serie/${tmdbId}`;
+  const base = `https://superflixapi.quest/serie/${tmdbId}`;
   if (season && episode) {
-    return `${base}/${season}/${episode}`;
+    return `${base}?temporada=${season}&episodio=${episode}`;
   }
-  return `${base}/1/1`;
+  return base;
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
