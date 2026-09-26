@@ -7,11 +7,11 @@ const BASE_URL = 'https://superflixapi.quest';
 
 // Player URLs
 export function moviePlayerUrl(id) {
-  return `https://player.autoembed.cc/embed/movie/${id}`;
+  return `https://embed.warezcdn.link/filme/${id}`;
 }
 
 export function seriePlayerUrl(id) {
-  return `https://player.autoembed.cc/embed/tv/${id}/1/1`; // fallback
+  return `https://embed.warezcdn.link/serie/${id}/1/1`; // fallback
 }
 
 export function channelPlayerUrl(id) {

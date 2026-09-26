@@ -5,7 +5,7 @@ import { playerUrlFromItem } from '../api';
 import './SeriesPlayer.css';
 
 function buildEpisodeUrl(tmdbId, season, episode) {
-  const base = `https://player.autoembed.cc/embed/tv/${tmdbId}`;
+  const base = `https://embed.warezcdn.link/serie/${tmdbId}`;
   if (season && episode) {
     return `${base}/${season}/${episode}`;
   }
