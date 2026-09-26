@@ -5,7 +5,7 @@ import { playerUrlFromItem } from '../api';
 import './SeriesPlayer.css';
 
 function buildEpisodeUrl(tmdbId, season, episode) {
-  const base = `https://embed.warezcdn.link/serie/${tmdbId}`;
+  const base = `https://embed.warezcdn.sbs/serie/${tmdbId}`;
   if (season && episode) {
     return `${base}/${season}/${episode}`;
   }
@@ -15,27 +15,27 @@ function buildEpisodeUrl(tmdbId, season, episode) {
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const IconChevronDown = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="16" height="16">
-    <polyline points="6 9 12 15 18 9"/>
+    <polyline points="6 9 12 15 18 9" />
   </svg>
 );
 const IconPlay = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-    <polygon points="5 3 19 12 5 21"/>
+    <polygon points="5 3 19 12 5 21" />
   </svg>
 );
 const IconClock = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="12" height="12">
-    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
   </svg>
 );
 const IconStar = () => (
   <svg viewBox="0 0 24 24" fill="#f59e0b" width="11" height="11">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   </svg>
 );
 const IconClose = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="18" height="18">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
@@ -94,20 +94,20 @@ function EpisodeCard({ ep, isActive, onClick }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function SeriesPlayer({ item, onClose }) {
-  const iframeRef  = useRef(null);
+  const iframeRef = useRef(null);
   const containerRef = useRef(null);
 
-  const [detail,          setDetail]          = useState(null);
-  const [seasons,         setSeasons]         = useState([]);
-  const [activeSeason,    setActiveSeason]    = useState(1);
-  const [episodes,        setEpisodes]        = useState([]);
-  const [activeEp,        setActiveEp]        = useState(null); // { season, number }
-  const [loadingDetail,   setLoadingDetail]   = useState(true);
+  const [detail, setDetail] = useState(null);
+  const [seasons, setSeasons] = useState([]);
+  const [activeSeason, setActiveSeason] = useState(1);
+  const [episodes, setEpisodes] = useState([]);
+  const [activeEp, setActiveEp] = useState(null); // { season, number }
+  const [loadingDetail, setLoadingDetail] = useState(true);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
-  const [playerUrl,       setPlayerUrl]       = useState('');
-  const [isTheater,       setIsTheater]       = useState(false);
-  const [panelOpen,       setPanelOpen]       = useState(true);
-  const [isFullscreen,    setIsFullscreen]    = useState(false);
+  const [playerUrl, setPlayerUrl] = useState('');
+  const [isTheater, setIsTheater] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const tmdbId = item.tmdb_id || item.id;
 
@@ -186,9 +186,9 @@ export default function SeriesPlayer({ item, onClose }) {
 
   const modalClass = [
     'sp-modal',
-    isTheater    ? 'sp-modal--theater'    : '',
+    isTheater ? 'sp-modal--theater' : '',
     isFullscreen ? 'sp-modal--fullscreen' : '',
-    !panelOpen   ? 'sp-modal--no-panel'   : '',
+    !panelOpen ? 'sp-modal--no-panel' : '',
   ].filter(Boolean).join(' ');
 
   return (
@@ -217,7 +217,7 @@ export default function SeriesPlayer({ item, onClose }) {
             <div className="sp-now-playing">
               <span className="sp-now-playing-label">ASSISTINDO</span>
               <span className="sp-now-playing-ep">
-                T{activeEp.season}E{String(activeEp.number).padStart(2,'0')} — {activeEpData.name}
+                T{activeEp.season}E{String(activeEp.number).padStart(2, '0')} — {activeEpData.name}
               </span>
               <button
                 className="sp-panel-toggle"
