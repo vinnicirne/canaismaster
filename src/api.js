@@ -7,11 +7,11 @@ const BASE_URL = 'https://superflixapi.quest';
 
 // Player URLs
 export function moviePlayerUrl(id) {
-  return `https://embed.warezcdn.sbs/filme/${id}`;
+  return `https://warezcdn.sbs/filme/${id}`;
 }
 
 export function seriePlayerUrl(id) {
-  return `https://embed.warezcdn.sbs/serie/${id}`;
+  return `https://warezcdn.sbs/serie/${id}`;
 }
 
 export function channelPlayerUrl(id) {
