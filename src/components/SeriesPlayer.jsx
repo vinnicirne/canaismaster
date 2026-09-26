@@ -7,7 +7,7 @@ import './SeriesPlayer.css';
 function buildEpisodeUrl(tmdbId, season, episode) {
   // A documentação do WarezCDN não especifica parâmetros de temporada/episódio na URL.
   // O player deles tem o próprio seletor embutido.
-  return `https://warezcdn.sbs/serie/${tmdbId}`;
+  return `https://embed.warezcdn.sbs/serie/${tmdbId}`;
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
