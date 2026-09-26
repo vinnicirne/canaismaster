@@ -1,0 +1,15 @@
+{
+  "id": "com.mastercanais.app",
+  "version": "1.0.0",
+  "vendor": "MasterCanais",
+  "type": "web",
+  "main": "index.html",
+  "title": "Master Canais",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#0f0f13",
+  "uiRevision": 2,
+  "resolution": "1920x1080",
+  "transparent": false,
+  "appDescription": "Filmes, Séries e Canais ao vivo"
+}
