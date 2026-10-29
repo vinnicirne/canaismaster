@@ -3,6 +3,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import Hls from 'hls.js';
 import SeriesPlayer from './SeriesPlayer';
 import { playerUrlFromItem, findMovieStream, moviePlayerUrl, IPTV_CONFIG } from '../api';
+import { saveWatchHistory } from '../history';
+import { requestFullscreenSafe, exitFullscreenSafe, isFullscreenActive } from '../utils/fullscreen';
 import './PlayerModal.css';
 
 function LiveOrMoviePlayer({ item, onClose }) {
@@ -10,8 +12,8 @@ function LiveOrMoviePlayer({ item, onClose }) {
   const iframeRef = useRef(null);
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
+  const lastSavedRef = useRef(0);
 
-  const [isTheater, setIsTheater] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loadingStream, setLoadingStream] = useState(true);
   const [streamError, setStreamError] = useState(false);
@@ -26,6 +28,12 @@ function LiveOrMoviePlayer({ item, onClose }) {
   const isMovie = !isChannel && (item.type === 'movie' || (!item.type && !item.seasons));
   const defaultPlayerUrl = playerUrlFromItem(item);
   const tmdbId = item.imdb_id || item.tmdb_id || item.id;
+
+  // 1. Auto-enter fullscreen upon opening video
+  useEffect(() => {
+    requestFullscreenSafe(containerRef.current);
+    saveWatchHistory(item);
+  }, [item]);
 
   // Search NEWS TTR for movie on mount
   useEffect(() => {
@@ -42,7 +50,6 @@ function LiveOrMoviePlayer({ item, onClose }) {
           setDirectMovieStream(stream);
           setActiveServer(0);
         } else {
-          // If not found in NEWS TTR VOD, switch to MultiEmbed clean player
           setActiveServer(1);
         }
       })
@@ -56,21 +63,34 @@ function LiveOrMoviePlayer({ item, onClose }) {
     return () => { mounted = false; };
   }, [isMovie, item.title, item.original]);
 
-  // Close on Escape (when not in fullscreen)
+  // Handle safe close with fullscreen exit
+  const handleClose = useCallback(() => {
+    exitFullscreenSafe();
+    onClose();
+  }, [onClose]);
+
+  // Close on Escape
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape' && !document.fullscreenElement) onClose();
+      if (e.key === 'Escape') {
+        handleClose();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [handleClose]);
 
   // Track fullscreen state
   useEffect(() => {
-    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const onChange = () => setIsFullscreen(isFullscreenActive());
     document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
+    document.addEventListener('webkitfullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      document.removeEventListener('webkitfullscreenchange', onChange);
+    };
   }, []);
+
 
   // Handle HLS playback for live channels
   useEffect(() => {
@@ -163,22 +183,31 @@ function LiveOrMoviePlayer({ item, onClose }) {
   }, []);
 
   const handleFullscreenToggle = useCallback(() => {
-    if (!document.fullscreenElement) {
-      containerRef.current?.requestFullscreen?.().catch(() => {});
+    if (!isFullscreenActive()) {
+      requestFullscreenSafe(containerRef.current);
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      exitFullscreenSafe();
     }
   }, []);
 
+  const handleTimeUpdate = useCallback((e) => {
+    const v = e.target;
+    if (!v || !v.duration || isChannel) return;
+    if (Math.abs(v.currentTime - lastSavedRef.current) > 4) {
+      lastSavedRef.current = v.currentTime;
+      saveWatchHistory(item, {
+        currentTime: v.currentTime,
+        duration: v.duration,
+      });
+    }
+  }, [item, isChannel]);
+
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleClose();
   };
 
-  const modalClass = [
-    'pmodal-content',
-    isTheater ? 'pmodal-content--theater' : '',
-    isFullscreen ? 'pmodal-content--fullscreen' : '',
-  ].filter(Boolean).join(' ');
+  const modalClass = 'pmodal-content pmodal-content--fullscreen';
+
 
   // Determine current active movie stream URL
   const movieDirectUrl = directMovieStream?.play_url || '';
@@ -245,6 +274,7 @@ function LiveOrMoviePlayer({ item, onClose }) {
                 onPlaying={() => {
                   setLoadingStream(false);
                   setStreamError(false);
+                  requestFullscreenSafe(containerRef.current);
                 }}
               />
 
@@ -298,9 +328,11 @@ function LiveOrMoviePlayer({ item, onClose }) {
                 playsInline
                 title={item.title}
                 onWaiting={() => setLoadingStream(true)}
+                onTimeUpdate={handleTimeUpdate}
                 onPlaying={() => {
                   setLoadingStream(false);
                   setStreamError(false);
+                  requestFullscreenSafe(containerRef.current);
                 }}
                 onError={() => {
                   console.warn('[DirectMovie] Stream error, switching to fallback server');
@@ -349,53 +381,37 @@ function LiveOrMoviePlayer({ item, onClose }) {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <button
-              onClick={() => setIsTheater(t => !t)}
-              title={isTheater ? 'Modo Normal' : 'Modo Teatro'}
-              style={{
-                background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.2)',
-                color: 'white', width: 40, height: 40, borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', backdropFilter: 'blur(4px)',
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                <rect x="2" y="3" width="20" height="18" rx="2" />
-                <line x1="2" y1="15" x2="22" y2="15" />
-              </svg>
-            </button>
-
-            <button
               onClick={handleFullscreenToggle}
-              title={isFullscreen ? 'Sair da Tela Cheia (F)' : 'Tela Cheia (F)'}
+              title={isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
               style={{
                 background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.2)',
-                color: 'white', width: 40, height: 40, borderRadius: '50%',
+                color: 'white', width: 44, height: 44, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', backdropFilter: 'blur(4px)',
               }}
             >
               {isFullscreen ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                   <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
                 </svg>
               ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                   <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                 </svg>
               )}
             </button>
 
             <button
-              onClick={onClose}
+              onClick={handleClose}
               title="Fechar (Esc)"
               style={{
                 background: 'rgba(0,0,0,0.65)', border: '1px solid rgba(255,255,255,0.2)',
-                color: 'white', width: 40, height: 40, borderRadius: '50%',
+                color: 'white', width: 44, height: 44, borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 cursor: 'pointer', backdropFilter: 'blur(4px)',
               }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="22" height="22">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>

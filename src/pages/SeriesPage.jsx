@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchSeriesList, fetchSeriesCategories } from '../api';
 import { MediaCard, SkeletonCard } from '../components/Cards';
 import PlayerModal from '../components/PlayerModal';
+import { requestFullscreenSafe } from '../utils/fullscreen';
 
 const QUICK_CATEGORIES = [
   { id: '1295', label: '🔴 Netflix' },
@@ -71,10 +72,16 @@ export default function SeriesPage() {
     setSearch('');
   };
 
+  const handlePlay = useCallback((item) => {
+    requestFullscreenSafe();
+    setSelectedItem(item);
+  }, []);
+
   const handleLoadMore = () => {
     if (loadingMore || page >= totalPages) return;
     loadItems(selectedCategory, search, page + 1);
   };
+
 
   return (
     <div className="page-content" id="series-page">
@@ -191,7 +198,7 @@ export default function SeriesPage() {
       ) : (
         <div className="media-grid" id="series-grid">
           {items.map(item => (
-            <MediaCard key={item.series_id || item.id} item={item} onClick={setSelectedItem} />
+            <MediaCard key={item.series_id || item.id} item={item} onClick={handlePlay} />
           ))}
           {loadingMore && Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
         </div>

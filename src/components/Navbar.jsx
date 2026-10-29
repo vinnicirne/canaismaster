@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { searchTmdb } from '../tmdb';
+import { NavLink } from 'react-router-dom';
+import { searchUnifiedCatalog } from '../api';
+import { requestFullscreenSafe } from '../utils/fullscreen';
 
 const SearchIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,7 +22,6 @@ export default function Navbar() {
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const inputRef = useRef(null);
-  const navigate = useNavigate();
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -40,29 +40,32 @@ export default function Navbar() {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const { results } = await searchTmdb(query);
-        setResults(results.slice(0, 8));
+        const data = await searchUnifiedCatalog(query);
+        setResults(data.all || []);
       } catch { setResults([]); }
       setSearching(false);
-    }, 400);
+    }, 350);
   }, [query]);
 
   const handleResultClick = (item) => {
-    // Open player inline — pass item via state
-    const type = item.type === 'serie' || item.type === 'tv' ? 'series' : 'filmes';
-    navigate(`/${type}`, { state: { playItem: item } });
+    requestFullscreenSafe();
+    window.dispatchEvent(new CustomEvent('mastercanais:play', { detail: item }));
     setSearchOpen(false);
     setQuery('');
     setResults([]);
   };
 
-  const typeLabel = (type) => {
-    if (!type) return 'Filme';
-    if (type === 'movie') return '🎬 Filme';
-    if (type === 'serie' || type === 'tv') return '📺 Série';
-    if (type.includes('canal') || type.includes('channel')) return '📡 Canal';
-    return '🎬 Filme';
+  const typeBadge = (type) => {
+    if (!type) return { label: '🎬 Filme', color: '#e50914' };
+    if (type.includes('canal') || type.includes('channel')) {
+      return { label: '🔴 Canal Ao Vivo', color: '#10b981' };
+    }
+    if (type === 'serie' || type === 'tv') {
+      return { label: '📺 Série', color: '#7c3aed' };
+    }
+    return { label: '🎬 Filme', color: '#e50914' };
   };
+
 
   return (
     <nav className={`navbar${scrolled ? ' scrolled' : ''}`}>
@@ -119,9 +122,26 @@ export default function Navbar() {
                     onError={e => { e.target.style.display = 'none'; }}
                   />
                   <div className="search-result-info">
-                    <div className="search-result-type">{typeLabel(item.type)}</div>
+                    <div
+                      className="search-result-type"
+                      style={{
+                        color: typeBadge(item.type).color,
+                        fontWeight: 700,
+                        fontSize: '0.7rem',
+                        letterSpacing: '0.5px',
+                        textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                    >
+                      {typeBadge(item.type).label}
+                    </div>
                     <div className="search-result-title">{item.title}</div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 2 }}>
+                      {item.category && (
+                        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>{item.category}</span>
+                      )}
                       {item.year && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.year}</span>}
                       {item.rating && (
                         <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>⭐ {item.rating}</span>

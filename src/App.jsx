@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import HomePage from './pages/HomePage';
 import MoviesPage from './pages/MoviesPage';
 import SeriesPage from './pages/SeriesPage';
 import ChannelsPage from './pages/ChannelsPage';
+import PlayerModal from './components/PlayerModal';
+import { requestFullscreenSafe } from './utils/fullscreen';
 
 function Footer() {
   return (
@@ -39,6 +42,19 @@ function NotFound() {
 }
 
 export default function App() {
+  const [globalPlayerItem, setGlobalPlayerItem] = useState(null);
+
+  useEffect(() => {
+    const handleGlobalPlay = (e) => {
+      if (e.detail) {
+        requestFullscreenSafe();
+        setGlobalPlayerItem(e.detail);
+      }
+    };
+    window.addEventListener('mastercanais:play', handleGlobalPlay);
+    return () => window.removeEventListener('mastercanais:play', handleGlobalPlay);
+  }, []);
+
   return (
     <>
       <Navbar />
@@ -50,6 +66,13 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
+      {globalPlayerItem && (
+        <PlayerModal
+          item={globalPlayerItem}
+          onClose={() => setGlobalPlayerItem(null)}
+        />
+      )}
     </>
   );
 }
+

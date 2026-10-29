@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchSeriesDetail, fetchSeasonEpisodes } from '../tmdb';
 import { findSeriesEpisodeStream, seriePlayerUrl, fetchSeriesDetailsAndEpisodes } from '../api';
+import { saveWatchHistory } from '../history';
+import { requestFullscreenSafe, exitFullscreenSafe, isFullscreenActive } from '../utils/fullscreen';
 import './SeriesPlayer.css';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -25,7 +27,7 @@ const IconStar = () => (
   </svg>
 );
 const IconClose = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="18" height="18">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="20" height="20">
     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
@@ -84,6 +86,7 @@ export default function SeriesPlayer({ item, onClose }) {
   const containerRef = useRef(null);
   const iframeRef = useRef(null);
   const videoRef = useRef(null);
+  const lastSavedRef = useRef(0);
 
   const [detail, setDetail] = useState(null);
   const [seasons, setSeasons] = useState([]);
@@ -91,9 +94,9 @@ export default function SeriesPlayer({ item, onClose }) {
   const [episodes, setEpisodes] = useState([]);
   const [activeEp, setActiveEp] = useState(null); // { season, number }
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
-  const [isTheater, setIsTheater] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false); // Collapsed by default for max screen space
   const [isFullscreen, setIsFullscreen] = useState(false);
+
 
   // Server state: 0 = NEWS TTR Direto (MP4), 1 = MultiEmbed, 2 = VidSrc
   const [activeServer, setActiveServer] = useState(0);
@@ -187,25 +190,72 @@ export default function SeriesPlayer({ item, onClose }) {
     }
   }, [item.series_id, activeEp, resolveEpisodeStream]);
 
+  // ── Auto-fullscreen on mount ─────────────────────────────────────────────
+  useEffect(() => {
+    requestFullscreenSafe(containerRef.current);
+  }, []);
+
   // ── Fullscreen listener ──────────────────────────────────────────────────
   useEffect(() => {
-    const fn = () => setIsFullscreen(!!document.fullscreenElement);
+    const fn = () => setIsFullscreen(isFullscreenActive());
     document.addEventListener('fullscreenchange', fn);
-    return () => document.removeEventListener('fullscreenchange', fn);
+    document.addEventListener('webkitfullscreenchange', fn);
+    return () => {
+      document.removeEventListener('fullscreenchange', fn);
+      document.removeEventListener('webkitfullscreenchange', fn);
+    };
   }, []);
+
+  // ── Safe Close ───────────────────────────────────────────────────────────
+  const handleClose = useCallback(() => {
+    exitFullscreenSafe();
+    onClose();
+  }, [onClose]);
 
   // ── Close on Escape ──────────────────────────────────────────────────────
   useEffect(() => {
     const fn = (e) => {
-      if (e.key === 'Escape' && !document.fullscreenElement) onClose();
+      if (e.key === 'Escape') {
+        handleClose();
+      }
     };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
-  }, [onClose]);
+  }, [handleClose]);
+
+  // ── Save History when Episode Changes ─────────────────────────────────────
+  const activeEpData = episodes.find(e => e.number === activeEp?.number && e.season === activeEp?.season);
+
+  useEffect(() => {
+    if (activeEp) {
+      saveWatchHistory(item, {
+        season: activeEp.season,
+        episode: activeEp.number,
+        episodeTitle: activeEpData?.name,
+      });
+    }
+  }, [item, activeEp, activeEpData]);
+
+  // ── Track Video Time Update ──────────────────────────────────────────────
+  const handleTimeUpdate = useCallback((e) => {
+    const v = e.target;
+    if (!v || !v.duration || !activeEp) return;
+    if (Math.abs(v.currentTime - lastSavedRef.current) > 4) {
+      lastSavedRef.current = v.currentTime;
+      saveWatchHistory(item, {
+        season: activeEp.season,
+        episode: activeEp.number,
+        episodeTitle: activeEpData?.name,
+        currentTime: v.currentTime,
+        duration: v.duration,
+      });
+    }
+  }, [item, activeEp, activeEpData]);
 
   // ── Episode click ────────────────────────────────────────────────────────
   const handleEpisodeClick = useCallback((ep) => {
     setActiveEp({ season: ep.season, number: ep.number });
+    requestFullscreenSafe(containerRef.current);
     if (ep.play_url) {
       setDirectEpStream({ play_url: ep.play_url });
       setActiveServer(0);
@@ -229,24 +279,27 @@ export default function SeriesPlayer({ item, onClose }) {
   }, [item.series_id]);
 
   const handleOverlayClick = (e) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleClose();
   };
 
-  const activeEpData = episodes.find(e => e.number === activeEp?.number && e.season === activeEp?.season);
+  const handleFullscreenToggle = useCallback(() => {
+    if (!isFullscreenActive()) {
+      requestFullscreenSafe(containerRef.current);
+    } else {
+      exitFullscreenSafe();
+    }
+  }, []);
+
   const fallbackEmbedUrl = activeServer === 2
     ? seriePlayerUrl(tmdbId, activeEp?.season || 1, activeEp?.number || 1, 1)
     : seriePlayerUrl(tmdbId, activeEp?.season || 1, activeEp?.number || 1, 0);
 
-  const modalClass = [
-    'sp-modal',
-    isTheater ? 'sp-modal--theater' : '',
-    isFullscreen ? 'sp-modal--fullscreen' : '',
-    !panelOpen ? 'sp-modal--no-panel' : '',
-  ].filter(Boolean).join(' ');
+  const modalClass = `sp-modal sp-modal--fullscreen${!panelOpen ? ' sp-modal--no-panel' : ''}`;
 
   return (
     <div className="sp-overlay" onClick={handleOverlayClick} id="series-player-overlay">
       <div className={modalClass} ref={containerRef} id="series-player-modal">
+
 
         {/* ── LEFT / MAIN: Player ── */}
         <div className="sp-player-section">
@@ -292,6 +345,8 @@ export default function SeriesPlayer({ item, onClose }) {
                 autoPlay
                 playsInline
                 title={title}
+                onTimeUpdate={handleTimeUpdate}
+                onPlaying={() => requestFullscreenSafe(containerRef.current)}
                 onError={() => setActiveServer(1)}
               />
             ) : (
@@ -357,30 +412,20 @@ export default function SeriesPlayer({ item, onClose }) {
             <div className="sp-player-actions">
               <button
                 className="sp-action-btn"
-                onClick={() => setIsTheater(t => !t)}
-                title={isTheater ? 'Modo Normal' : 'Modo Expandido'}
+                onClick={handleFullscreenToggle}
+                title={isFullscreen ? 'Sair da Tela Cheia' : 'Tela Cheia'}
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <rect x="2" y="3" width="20" height="18" rx="2" />
-                  <line x1="2" y1="15" x2="22" y2="15" />
-                </svg>
+                {isFullscreen ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                  </svg>
+                )}
               </button>
-              <button
-                className="sp-action-btn"
-                onClick={() => {
-                  if (!document.fullscreenElement) {
-                    containerRef.current?.requestFullscreen?.().catch(() => {});
-                  } else {
-                    document.exitFullscreen?.().catch(() => {});
-                  }
-                }}
-                title="Tela Cheia"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-                </svg>
-              </button>
-              <button className="sp-action-btn sp-close-btn" onClick={onClose} title="Fechar (Esc)">
+              <button className="sp-action-btn sp-close-btn" onClick={handleClose} title="Fechar (Esc)">
                 <IconClose />
               </button>
             </div>

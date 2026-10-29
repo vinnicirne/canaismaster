@@ -5,7 +5,10 @@ import {
   fetchChannels,
 } from '../api';
 import ScrollRow from '../components/ScrollRow';
+import WatchHistoryRow from '../components/WatchHistoryRow';
 import PlayerModal from '../components/PlayerModal';
+import { getWatchHistory, removeFromWatchHistory, clearWatchHistory } from '../history';
+import { requestFullscreenSafe } from '../utils/fullscreen';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const PlayIcon  = () => <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21"/></svg>;
@@ -119,12 +122,24 @@ export default function HomePage() {
   const [netflixSeries,  setNetflixSeries]  = useState([]);
   const [globoSeries,    setGloboSeries]    = useState([]);
   const [channels,       setChannels]       = useState([]);
+  const [watchHistory,   setWatchHistory]   = useState([]);
 
   const [loadingMovies,   setLoadingMovies]   = useState(true);
   const [loadingSeries,   setLoadingSeries]   = useState(true);
   const [loadingChannels, setLoadingChannels] = useState(true);
 
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // Sync Watch History from localStorage & events
+  useEffect(() => {
+    setWatchHistory(getWatchHistory());
+
+    const handleHistoryUpdate = (e) => {
+      setWatchHistory(e.detail || getWatchHistory());
+    };
+    window.addEventListener('mastercanais:history-updated', handleHistoryUpdate);
+    return () => window.removeEventListener('mastercanais:history-updated', handleHistoryUpdate);
+  }, []);
 
   useEffect(() => {
     // 1. Real Lançamentos from NEWS TTR
@@ -159,23 +174,55 @@ export default function HomePage() {
     // 5. Live Channels from NEWS TTR
     fetchChannels(1)
       .then(data => {
-        setChannels(data.slice(0, 24));
+        setChannels(data.slice(0, 32));
         setLoadingChannels(false);
       })
       .catch(() => setLoadingChannels(false));
   }, []);
 
-  const handlePlay = useCallback((item) => setSelectedItem(item), []);
+  const handlePlay = useCallback((item) => {
+    requestFullscreenSafe();
+    setSelectedItem(item);
+  }, []);
+
+  const handleRemoveHistory = useCallback((id) => {
+    removeFromWatchHistory(id);
+    setWatchHistory(getWatchHistory());
+  }, []);
+
+  const handleClearHistory = useCallback(() => {
+    if (window.confirm('Deseja realmente limpar todo o histórico de assistidos?')) {
+      clearWatchHistory();
+      setWatchHistory([]);
+    }
+  }, []);
 
   return (
     <div className="page-content" id="home-page">
       <HeroBanner items={featuredMovies} onPlay={handlePlay} />
 
+      {/* ⏳ Continuar Assistindo (Histórico) */}
+      <WatchHistoryRow
+        items={watchHistory}
+        onPlay={handlePlay}
+        onRemove={handleRemoveHistory}
+        onClear={handleClearHistory}
+      />
+
+      {/* 🔴 Canais Ao Vivo da Grade */}
+      <ScrollRow
+        title="🔴 Canais ao Vivo"
+        items={channels}
+        loading={loadingChannels}
+        onCard={handlePlay}
+        type="channel"
+        linkTo="/canais"
+      />
+
       <ScrollRow title="🔥 Lançamentos Recentes"       items={featuredMovies} loading={loadingMovies}   onCard={handlePlay} linkTo="/filmes" />
       <ScrollRow title="🎬 Filmes em Destaque & Cinema" items={cinemaMovies}   loading={loadingMovies}   onCard={handlePlay} linkTo="/filmes" />
       <ScrollRow title="📺 Séries Netflix"             items={netflixSeries}  loading={loadingSeries}   onCard={handlePlay} linkTo="/series" />
       <ScrollRow title="⭐ Séries Globoplay & Nacionais" items={globoSeries}   loading={loadingSeries}   onCard={handlePlay} linkTo="/series" />
-      <ScrollRow title="📡 Canais ao Vivo"              items={channels}       loading={loadingChannels} onCard={handlePlay} type="channel" linkTo="/canais" />
 
       {selectedItem && (
         <PlayerModal item={selectedItem} onClose={() => setSelectedItem(null)} />
@@ -183,3 +230,4 @@ export default function HomePage() {
     </div>
   );
 }
+

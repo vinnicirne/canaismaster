@@ -616,3 +616,83 @@ export function playerUrlFromItem(item) {
   }
   return seriePlayerUrl(item.tmdb_id || item.id, 1, 1);
 }
+
+// ── Unified Search (Channels, Movies, Series from NEWS TTR) ───────────────────
+export async function searchUnifiedCatalog(query) {
+  if (!query || !query.trim()) return { channels: [], movies: [], series: [], all: [] };
+  const cleanQ = cleanTitle(query);
+  if (!cleanQ) return { channels: [], movies: [], series: [], all: [] };
+
+  // 1. Search Channels
+  let matchedChannels = [];
+  try {
+    if (!memoryStreamsCache) {
+      const data = await xtreamFetch('get_live_streams');
+      if (Array.isArray(data) && data.length > 0) {
+        memoryStreamsCache = data;
+      }
+    }
+    const streams = memoryStreamsCache || FALLBACK_CHANNELS;
+    matchedChannels = streams
+      .filter(c => cleanTitle(c.name || c.title).includes(cleanQ))
+      .slice(0, 12)
+      .map(normaliseChannel);
+  } catch (err) {
+    console.warn('[searchUnifiedCatalog:channels]', err);
+  }
+
+  // 2. Search Movies (VOD)
+  let matchedMovies = [];
+  try {
+    if (!memoryAllVodCache) {
+      const cached = Object.values(memoryVodStreamsByCategory).flat();
+      if (cached.length > 0) {
+        memoryAllVodCache = cached;
+      } else {
+        const data = await xtreamFetch('get_vod_streams');
+        if (Array.isArray(data) && data.length > 0) {
+          memoryAllVodCache = data;
+        }
+      }
+    }
+    const vods = memoryAllVodCache || [];
+    matchedMovies = vods
+      .filter(m => cleanTitle(m.name || m.title).includes(cleanQ))
+      .slice(0, 12)
+      .map(normaliseVodMovie);
+  } catch (err) {
+    console.warn('[searchUnifiedCatalog:movies]', err);
+  }
+
+  // 3. Search Series
+  let matchedSeries = [];
+  try {
+    if (!memoryAllSeriesCache) {
+      const cached = Object.values(memorySeriesByCategory).flat();
+      if (cached.length > 0) {
+        memoryAllSeriesCache = cached;
+      } else {
+        const data = await xtreamFetch('get_series');
+        if (Array.isArray(data) && data.length > 0) {
+          memoryAllSeriesCache = data;
+        }
+      }
+    }
+    const seriesList = memoryAllSeriesCache || [];
+    matchedSeries = seriesList
+      .filter(s => cleanTitle(s.name || s.title).includes(cleanQ))
+      .slice(0, 12)
+      .map(normaliseSeriesItem);
+  } catch (err) {
+    console.warn('[searchUnifiedCatalog:series]', err);
+  }
+
+  const all = [...matchedChannels, ...matchedMovies, ...matchedSeries];
+  return {
+    channels: matchedChannels,
+    movies: matchedMovies,
+    series: matchedSeries,
+    all,
+  };
+}
+

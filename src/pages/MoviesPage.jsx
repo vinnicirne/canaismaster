@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchMovies, fetchVodCategories } from '../api';
 import { MediaCard, SkeletonCard } from '../components/Cards';
 import PlayerModal from '../components/PlayerModal';
+import { requestFullscreenSafe } from '../utils/fullscreen';
 
 const QUICK_CATEGORIES = [
   { id: '1294', label: '🚀 Lançamentos' },
@@ -72,10 +73,16 @@ export default function MoviesPage() {
     setSearch('');
   };
 
+  const handlePlay = useCallback((item) => {
+    requestFullscreenSafe();
+    setSelectedItem(item);
+  }, []);
+
   const handleLoadMore = () => {
     if (loadingMore || page >= totalPages) return;
     loadItems(selectedCategory, search, page + 1);
   };
+
 
   return (
     <div className="page-content" id="movies-page">
@@ -192,7 +199,7 @@ export default function MoviesPage() {
       ) : (
         <div className="media-grid" id="movies-grid">
           {items.map(item => (
-            <MediaCard key={item.stream_id || item.id} item={item} onClick={setSelectedItem} />
+            <MediaCard key={item.stream_id || item.id} item={item} onClick={handlePlay} />
           ))}
           {loadingMore && Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
         </div>

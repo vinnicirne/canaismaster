@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchChannels, fetchLiveCategories } from '../api';
 import { ChannelCard, SkeletonCard } from '../components/Cards';
 import PlayerModal from '../components/PlayerModal';
+import { requestFullscreenSafe } from '../utils/fullscreen';
 
 const QUICK_CATEGORIES = [
   { id: 'all',  name: 'Todos os Canais', icon: '📡' },
@@ -80,6 +81,11 @@ export default function ChannelsPage() {
     setPage(1);
     setSearch('');
   };
+
+  const handlePlay = useCallback((item) => {
+    requestFullscreenSafe();
+    setSelectedItem(item);
+  }, []);
 
   const displayed = useMemo(() => {
     if (!search.trim()) return items;
@@ -232,7 +238,7 @@ export default function ChannelsPage() {
       ) : (
         <div className="channel-grid" id="channels-grid">
           {displayed.map(item => (
-            <ChannelCard key={item.id || item.stream_id || item.title} item={item} onClick={setSelectedItem} />
+            <ChannelCard key={item.id || item.stream_id || item.title} item={item} onClick={handlePlay} />
           ))}
           {loadingMore && Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`more-${i}`} type="channel" />)}
         </div>
