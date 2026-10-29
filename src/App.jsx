@@ -10,11 +10,15 @@ function Footer() {
     <footer className="footer">
       <div className="footer-logo">MASTERCANAIS</div>
       <p className="footer-text">
-        Conteúdo fornecido por{' '}
-        <a href="https://superflixapi.quest" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)', textDecoration: 'none' }}>
-          SuperFlixAPI
-        </a>
-        {' '} · © {new Date().getFullYear()}
+        Canais ao Vivo por{' '}
+        <span style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>
+          NEWS TTR
+        </span>
+        {' '}· Filmes & Séries por{' '}
+        <span style={{ color: 'var(--accent-purple)', fontWeight: 600 }}>
+          TMDB
+        </span>
+        {' '}· © {new Date().getFullYear()}
       </p>
     </footer>
   );

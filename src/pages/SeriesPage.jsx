@@ -1,49 +1,54 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  fetchPopularSeries,
-  fetchTopRatedSeries,
-  fetchAiringTodaySeries,
-  fetchSeriesByGenre,
-  fetchSeriesSearch,
-  TV_GENRES,
-} from '../tmdb';
+import { fetchSeriesList, fetchSeriesCategories } from '../api';
 import { MediaCard, SkeletonCard } from '../components/Cards';
 import PlayerModal from '../components/PlayerModal';
 
-const TABS = [
-  { id: 'popular',      label: '🔥 Populares',       fetch: fetchPopularSeries },
-  { id: 'top_rated',    label: '⭐ Mais Avaliadas',   fetch: fetchTopRatedSeries },
-  { id: 'airing_today', label: '📡 Estreando Hoje',   fetch: fetchAiringTodaySeries },
+const QUICK_CATEGORIES = [
+  { id: '1295', label: '🔴 Netflix' },
+  { id: '1307', label: '🟡 Globoplay' },
+  { id: '1304', label: '🏰 Disney+' },
+  { id: '1297', label: '📦 Prime Video' },
+  { id: '1298', label: '🍏 Apple TV+' },
+  { id: '1309', label: '💜 Max' },
+  { id: '1312', label: '⛰️ Paramount' },
+  { id: '1310', label: '📖 Novelas' },
+  { id: '1319', label: '🌸 Doramas' },
 ];
 
 export default function SeriesPage() {
-  const [items,        setItems]        = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [loadingMore,  setLoadingMore]  = useState(false);
-  const [page,         setPage]         = useState(1);
-  const [totalPages,   setTotalPages]   = useState(1);
-  const [activeTab,    setActiveTab]    = useState('popular');
-  const [activeGenre,  setActiveGenre]  = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [search,       setSearch]       = useState('');
-  
+  const [items,            setItems]            = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [loadingMore,      setLoadingMore]      = useState(false);
+  const [page,             setPage]             = useState(1);
+  const [totalPages,       setTotalPages]       = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState('1295');
+  const [allCategories,    setAllCategories]    = useState([]);
+  const [selectedItem,     setSelectedItem]     = useState(null);
+  const [search,           setSearch]           = useState('');
+
   const searchDebounce = useRef(null);
 
-  const loadItems = useCallback(async (tab, genre, sq, pg = 1) => {
+  useEffect(() => {
+    fetchSeriesCategories().then(cats => {
+      if (cats && cats.length) setAllCategories(cats);
+    });
+  }, []);
+
+  const loadItems = useCallback(async (catId, sq, pg = 1) => {
     if (pg === 1) setLoading(true);
     else setLoadingMore(true);
+
     try {
-      let res;
-      if (sq && sq.trim().length > 1) {
-        res = await fetchSeriesSearch(sq, pg);
-      } else if (genre) {
-        res = await fetchSeriesByGenre(genre, pg);
-      } else {
-        const fetchFn = TABS.find(t => t.id === tab)?.fetch || fetchPopularSeries;
-        res = await fetchFn(pg);
-      }
-      setItems(prev => pg === 1 ? res.results : [...prev, ...res.results]);
-      setTotalPages(res.totalPages);
+      const res = await fetchSeriesList({
+        page: pg,
+        categoryId: catId,
+        search: sq,
+        pageSize: 30,
+      });
+
+      const { results, total_pages } = res;
+      setItems(prev => pg === 1 ? results : [...prev, ...results]);
+      setTotalPages(total_pages);
       setPage(pg);
     } catch (err) {
       console.error('[SeriesPage]', err);
@@ -56,82 +61,127 @@ export default function SeriesPage() {
   useEffect(() => {
     clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => {
-      loadItems(activeTab, activeGenre, search, 1);
-    }, 400);
-  }, [activeTab, activeGenre, search, loadItems]);
+      loadItems(selectedCategory, search, 1);
+    }, 300);
+    return () => clearTimeout(searchDebounce.current);
+  }, [selectedCategory, search, loadItems]);
 
-  const handleTabChange = (tab) => { setActiveTab(tab); setActiveGenre(null); setSearch(''); };
-  const handleGenre     = (id)  => { setActiveGenre(g => g === id ? null : id); setActiveTab('popular'); setSearch(''); };
-  const loadMore        = ()    => loadItems(activeTab, activeGenre, search, page + 1);
+  const handleCategoryChange = (catId) => {
+    setSelectedCategory(catId);
+    setSearch('');
+  };
+
+  const handleLoadMore = () => {
+    if (loadingMore || page >= totalPages) return;
+    loadItems(selectedCategory, search, page + 1);
+  };
 
   return (
     <div className="page-content" id="series-page">
-      <div className="page-hero" style={{ paddingBottom: 'var(--space-md)' }}>
+      <div className="page-hero">
         <h1 className="page-hero-title">📺 Séries</h1>
-        <p className="page-hero-subtitle">Séries, Animes e Doramas para maratonar</p>
+        <p className="page-hero-subtitle">Catálogo oficial NEWS TTR — Temporadas e episódios completos</p>
       </div>
 
-      <div style={{ padding: '0 var(--space-xl) var(--space-lg)', maxWidth: 1600, margin: '0 auto' }}>
-        <div style={{ position: 'relative', maxWidth: 500, margin: '0 auto' }}>
+      {/* Search & Category select */}
+      <div style={{
+        padding: '0 var(--space-xl) var(--space-md)',
+        maxWidth: 1600,
+        margin: '0 auto',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 'var(--space-md)',
+      }}>
+        {/* Search bar */}
+        <div style={{ position: 'relative', minWidth: 280, maxWidth: 400, flex: 1 }}>
           <svg
-            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}
-            width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }}
+            width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
           >
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input
+            id="series-search-input"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar séries pelo nome..."
+            placeholder="Buscar série no catálogo..."
             style={{
               width: '100%',
-              padding: '14px 16px 14px 48px',
+              padding: '10px 40px 10px 42px',
               background: 'var(--bg-card)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-full)',
               color: 'var(--text-white)',
               fontFamily: 'var(--font-family)',
-              fontSize: '1rem',
+              fontSize: 'var(--font-size-base)',
               outline: 'none',
               transition: 'border-color 200ms',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}
-            onFocus={e => e.target.style.borderColor = 'var(--accent-red)'}
+            onFocus={e => e.target.style.borderColor = 'var(--accent-purple)'}
             onBlur={e => e.target.style.borderColor = 'var(--border-subtle)'}
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              style={{
+                position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', color: 'var(--text-muted)',
+                cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center'
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
+
+        {/* All Categories Dropdown */}
+        {allCategories.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Plataforma:</span>
+            <select
+              value={selectedCategory}
+              onChange={e => handleCategoryChange(e.target.value)}
+              style={{
+                background: 'var(--bg-card)',
+                color: 'var(--text-white)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '8px 14px',
+                fontSize: '0.85rem',
+                fontFamily: 'var(--font-family)',
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {allCategories.map(c => (
+                <option key={c.category_id} value={c.category_id}>
+                  {c.category_name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      <div className="filter-bar" style={{ marginBottom: 0 }}>
-        {TABS.map(t => (
+      {/* Quick category buttons */}
+      <div className="filter-bar" style={{ marginBottom: 'var(--space-md)' }}>
+        {QUICK_CATEGORIES.map(t => (
           <button
             key={t.id}
-            id={`tab-series-${t.id}`}
-            className={`filter-btn${activeTab === t.id && !activeGenre ? ' active' : ''}`}
-            onClick={() => handleTabChange(t.id)}
+            id={`tab-${t.id}`}
+            className={`filter-btn${selectedCategory === t.id && !search ? ' active' : ''}`}
+            onClick={() => handleCategoryChange(t.id)}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="filter-bar" style={{ paddingTop: 0 }}>
-        {TV_GENRES.map(g => (
-          <button
-            key={g.id}
-            id={`genre-tv-${g.id}`}
-            className={`filter-btn${activeGenre === g.id ? ' active' : ''}`}
-            style={{ fontSize: '0.72rem' }}
-            onClick={() => handleGenre(g.id)}
-          >
-            {g.name}
-          </button>
-        ))}
-      </div>
-
       {loading ? (
         <div className="media-grid">
-          {Array.from({ length: 20 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from({ length: 24 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : items.length === 0 ? (
         <div className="empty-state">
@@ -141,7 +191,7 @@ export default function SeriesPage() {
       ) : (
         <div className="media-grid" id="series-grid">
           {items.map(item => (
-            <MediaCard key={item.tmdb_id} item={item} onClick={setSelectedItem} />
+            <MediaCard key={item.series_id || item.id} item={item} onClick={setSelectedItem} />
           ))}
           {loadingMore && Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
         </div>
@@ -149,8 +199,13 @@ export default function SeriesPage() {
 
       {!loading && page < totalPages && (
         <div className="load-more-container">
-          <button id="load-more-series-btn" className="btn-load-more" onClick={loadMore} disabled={loadingMore}>
-            {loadingMore ? 'Carregando...' : 'Carregar Mais'}
+          <button
+            id="load-more-series-btn"
+            className="btn-load-more"
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? 'Carregando mais...' : 'Carregar Mais Séries'}
           </button>
         </div>
       )}

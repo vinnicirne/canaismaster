@@ -11,4 +11,13 @@ export default defineConfig({
     })
   ],
   base: './', // Crucial for LG webOS (file:// protocol compatibility)
+  server: {
+    proxy: {
+      '/iptv-api': {
+        target: 'http://newsttr2.cloud',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/iptv-api/, ''),
+      },
+    },
+  },
 })

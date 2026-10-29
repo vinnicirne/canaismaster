@@ -1,21 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import {
-  fetchTrending,
-  fetchPopularMovies,
-  fetchTopRatedMovies,
-  fetchPopularSeries,
-  fetchAiringTodaySeries,
-} from '../tmdb';
-import { fetchChannels } from '../api';
-import { SkeletonCard } from '../components/Cards';
+  fetchMovies,
+  fetchSeriesList,
+  fetchChannels,
+} from '../api';
 import ScrollRow from '../components/ScrollRow';
 import PlayerModal from '../components/PlayerModal';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const PlayIcon  = () => <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21"/></svg>;
-const InfoIcon  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
-const ArrowIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>;
 const StarIcon  = () => <svg viewBox="0 0 24 24" fill="#f59e0b" width="14" height="14"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
 
 // ── Hero Banner ───────────────────────────────────────────────────────────────
@@ -58,154 +51,117 @@ function HeroBanner({ items, onPlay }) {
     );
   }
 
-  const item = items[current];
+  const item = items[current] || items[0];
 
   return (
     <section className="hero" id="hero-banner">
       <div
         className={`hero-bg${transitioning ? ' hero-bg--fade' : ''}`}
-        style={{ backgroundImage: `url(${item.backdrop})` }}
+        style={{
+          backgroundImage: `url(${item.backdrop || item.poster})`,
+          backgroundPosition: 'center top',
+        }}
       />
-      <div className="hero-bg-overlay" />
-
+      <div className="hero-gradient-overlay" />
       <div className="hero-content">
-        <div className="hero-badge">
-          {item.type === 'movie' ? '🎬 Filme' : '📺 Série'}
-          {item.year && <span style={{ opacity: 0.8 }}> · {item.year}</span>}
+        <div className="hero-badges">
+          <span className="hero-badge hero-badge--trending">
+            🔥 DESTAQUE NEWS TTR
+          </span>
+          <span className="hero-badge hero-badge--type">
+            FILME
+          </span>
+          {item.year && <span className="hero-meta-item">{item.year}</span>}
+          {item.rating && (
+            <span className="hero-meta-item hero-rating">
+              <StarIcon /> {item.rating}
+            </span>
+          )}
         </div>
 
         <h1 className="hero-title">{item.title}</h1>
-
-        {/* Rating */}
-        {item.rating && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <StarIcon />
-            <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.95rem' }}>{item.rating}</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>/ 10</span>
-            {item.genres?.length > 0 && (
-              <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
-                · {item.genres.slice(0, 3).join(', ')}
-              </span>
-            )}
-          </div>
+        {item.overview && (
+          <p className="hero-overview">{item.overview}</p>
         )}
-
-        <p className="hero-desc">{item.overview}</p>
 
         <div className="hero-actions">
           <button
-            id={`hero-play-${item.tmdb_id}`}
+            id="hero-play-btn"
             className="btn-primary"
             onClick={() => onPlay(item)}
+            aria-label={`Assistir ${item.title}`}
           >
             <PlayIcon /> Assistir Agora
           </button>
-          <Link to={item.type === 'movie' ? '/filmes' : '/series'} className="btn-secondary">
-            <InfoIcon /> Ver Mais
-          </Link>
         </div>
       </div>
 
-      {/* Indicators */}
-      <div className="hero-indicators">
-        {items.map((_, i) => (
-          <div
-            key={i}
-            className={`hero-dot${i === current ? ' active' : ''}`}
-            onClick={() => { clearInterval(timerRef.current); goTo(i); }}
+      <div className="hero-dots" role="tablist">
+        {items.slice(0, 7).map((it, idx) => (
+          <button
+            key={it.id || idx}
+            role="tab"
+            aria-selected={idx === current}
+            className={`hero-dot${idx === current ? ' active' : ''}`}
+            onClick={() => goTo(idx)}
+            aria-label={`Ir para banner ${idx + 1}`}
           />
-        ))}
-      </div>
-
-      {/* Side thumbnail strip */}
-      <div className="hero-thumbs">
-        {items.map((it, i) => (
-          <div
-            key={it.tmdb_id}
-            className={`hero-thumb${i === current ? ' hero-thumb--active' : ''}`}
-            onClick={() => { clearInterval(timerRef.current); goTo(i); }}
-          >
-            <img src={it.poster} alt={it.title} />
-          </div>
         ))}
       </div>
     </section>
   );
 }
 
-// ── Scroll Section ────────────────────────────────────────────────────────────
-function ScrollSection({ title, items, loading, onCard, type = 'media', linkTo }) {
-  return (
-    <div className="section-container">
-      <div className="section-header">
-        <h2 className="section-title">{title}</h2>
-        {linkTo && (
-          <Link to={linkTo} className="section-link">
-            Ver Tudo <ArrowIcon />
-          </Link>
-        )}
-      </div>
-      <div className="scroll-row" id={`row-${title.replace(/\s/g, '-').toLowerCase()}`}>
-        {loading
-          ? Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} type={type} />)
-          : items.map(item =>
-            type === 'channel'
-              ? <ChannelCard key={item.id} item={item} onClick={onCard} />
-              : <MediaCard   key={item.tmdb_id || item.id} item={item} onClick={onCard} />
-          )
-        }
-      </div>
-    </div>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function HomePage() {
-  const [trending,      setTrending]      = useState([]);
-  const [popularMovies, setPopularMovies] = useState([]);
-  const [topMovies,     setTopMovies]     = useState([]);
-  const [popularSeries, setPopularSeries] = useState([]);
-  const [airingSeries,  setAiringSeries]  = useState([]);
-  const [channels,      setChannels]      = useState([]);
+  const [featuredMovies, setFeaturedMovies] = useState([]);
+  const [cinemaMovies,   setCinemaMovies]   = useState([]);
+  const [netflixSeries,  setNetflixSeries]  = useState([]);
+  const [globoSeries,    setGloboSeries]    = useState([]);
+  const [channels,       setChannels]       = useState([]);
 
-  const [loadingHero,    setLoadingHero]    = useState(true);
-  const [loadingMovies,  setLoadingMovies]  = useState(true);
-  const [loadingSeries,  setLoadingSeries]  = useState(true);
-  const [loadingChannels,setLoadingChannels]= useState(true);
+  const [loadingMovies,   setLoadingMovies]   = useState(true);
+  const [loadingSeries,   setLoadingSeries]   = useState(true);
+  const [loadingChannels, setLoadingChannels] = useState(true);
 
   const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
-    // Hero — trending all
-    fetchTrending('all', 'week')
-      .then(data => {
-        const withBackdrop = data.filter(i => i.backdrop && i.overview).slice(0, 8);
-        setTrending(withBackdrop);
-        setLoadingHero(false);
-      })
-      .catch(() => setLoadingHero(false));
-
-    // Movies
-    Promise.all([fetchPopularMovies(1), fetchTopRatedMovies(1)])
-      .then(([popular, top]) => {
-        setPopularMovies(popular.results.slice(0, 20));
-        setTopMovies(top.results.slice(0, 20));
+    // 1. Real Lançamentos from NEWS TTR
+    fetchMovies({ page: 1, categoryId: '1294', pageSize: 20 })
+      .then(res => {
+        const list = res.results || [];
+        setFeaturedMovies(list);
         setLoadingMovies(false);
       })
-      .catch(() => setLoadingMovies(false));
+      .catch(() => {
+        setLoadingMovies(false);
+      });
 
-    // Series
-    Promise.all([fetchPopularSeries(1), fetchAiringTodaySeries(1)])
-      .then(([popular, airing]) => {
-        setPopularSeries(popular.results.slice(0, 20));
-        setAiringSeries(airing.results.slice(0, 20));
+    // 2. Real Cinema movies from NEWS TTR
+    fetchMovies({ page: 1, categoryId: '1293', pageSize: 20 })
+      .then(res => setCinemaMovies(res.results || []))
+      .catch(() => {});
+
+    // 3. Real Netflix Series from NEWS TTR
+    fetchSeriesList({ page: 1, categoryId: '1295', pageSize: 20 })
+      .then(res => {
+        setNetflixSeries(res.results || []);
         setLoadingSeries(false);
       })
       .catch(() => setLoadingSeries(false));
 
-    // Channels (SuperFlixAPI)
+    // 4. Real Globoplay & Nacionais Series from NEWS TTR
+    fetchSeriesList({ page: 1, categoryId: '1307', pageSize: 20 })
+      .then(res => setGloboSeries(res.results || []))
+      .catch(() => {});
+
+    // 5. Live Channels from NEWS TTR
     fetchChannels(1)
-      .then(data => { setChannels(data.slice(0, 24)); setLoadingChannels(false); })
+      .then(data => {
+        setChannels(data.slice(0, 24));
+        setLoadingChannels(false);
+      })
       .catch(() => setLoadingChannels(false));
   }, []);
 
@@ -213,14 +169,13 @@ export default function HomePage() {
 
   return (
     <div className="page-content" id="home-page">
-      <HeroBanner items={trending} onPlay={handlePlay} />
+      <HeroBanner items={featuredMovies} onPlay={handlePlay} />
 
-      <ScrollRow title="🔥 Em Alta — Filmes & Séries" items={trending.slice(0, 20)} loading={loadingHero}    onCard={handlePlay} />
-      <ScrollRow title="🎬 Filmes Populares"          items={popularMovies}           loading={loadingMovies}  onCard={handlePlay} linkTo="/filmes" />
-      <ScrollRow title="⭐ Melhores Avaliados"         items={topMovies}               loading={loadingMovies}  onCard={handlePlay} linkTo="/filmes" />
-      <ScrollRow title="📺 Séries Populares"          items={popularSeries}           loading={loadingSeries}  onCard={handlePlay} linkTo="/series" />
-      <ScrollRow title="📡 Estreando Hoje"            items={airingSeries}            loading={loadingSeries}  onCard={handlePlay} linkTo="/series" />
-      <ScrollRow title="📡 Canais ao Vivo"            items={channels}                loading={loadingChannels} onCard={handlePlay} type="channel" linkTo="/canais" />
+      <ScrollRow title="🔥 Lançamentos Recentes"       items={featuredMovies} loading={loadingMovies}   onCard={handlePlay} linkTo="/filmes" />
+      <ScrollRow title="🎬 Filmes em Destaque & Cinema" items={cinemaMovies}   loading={loadingMovies}   onCard={handlePlay} linkTo="/filmes" />
+      <ScrollRow title="📺 Séries Netflix"             items={netflixSeries}  loading={loadingSeries}   onCard={handlePlay} linkTo="/series" />
+      <ScrollRow title="⭐ Séries Globoplay & Nacionais" items={globoSeries}   loading={loadingSeries}   onCard={handlePlay} linkTo="/series" />
+      <ScrollRow title="📡 Canais ao Vivo"              items={channels}       loading={loadingChannels} onCard={handlePlay} type="channel" linkTo="/canais" />
 
       {selectedItem && (
         <PlayerModal item={selectedItem} onClose={() => setSelectedItem(null)} />

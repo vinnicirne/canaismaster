@@ -5,13 +5,13 @@
 .pmodal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.92);
   z-index: 9000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
   animation: pmodal-bg-in 0.25s ease;
 }
 
@@ -27,12 +27,12 @@
   overflow: hidden;
   width: 100%;
   max-width: 960px;
-  border: 1px solid rgba(255,255,255,0.07);
-  box-shadow: 0 32px 80px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
   animation: pmodal-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-  max-height: 92vh;
+  max-height: 94vh;
 }
 
 @keyframes pmodal-in {
@@ -54,7 +54,46 @@
   border: none;
 }
 
-/* ── Player wrapper (iframe + controls overlay) ── */
+/* ── Server selection bar ── */
+.pmodal-server-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #111119;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.pmodal-server-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.pmodal-server-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.pmodal-server-btn.active {
+  background: var(--accent-primary, #e50914);
+  border-color: var(--accent-primary, #e50914);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(229, 9, 20, 0.4);
+}
+
+/* ── Player wrapper (iframe or video + controls) ── */
 .pmodal-player-wrap {
   position: relative;
   width: 100%;
@@ -76,6 +115,131 @@
   height: 100%;
   border: none;
   display: block;
+}
+
+.pmodal-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #000;
+  object-fit: contain;
+}
+
+/* ── Channel Header & Badges ── */
+.pmodal-channel-info-bar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  pointer-events: none;
+}
+
+.pmodal-channel-logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.pmodal-channel-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pmodal-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ef4444;
+  letter-spacing: 0.5px;
+}
+
+.pmodal-live-dot {
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #ef4444;
+  animation: pulse-dot 1.2s infinite;
+}
+
+/* ── Buffering & Loading Spinner ── */
+.pmodal-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  color: #fff;
+  pointer-events: none;
+}
+
+.pmodal-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: var(--accent-primary, #e50914);
+  border-radius: 50%;
+  animation: pmodal-spin 0.8s linear infinite;
+}
+
+@keyframes pmodal-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error & Retry ── */
+.pmodal-error-box {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: rgba(10, 10, 15, 0.95);
+  z-index: 15;
+  color: #fff;
+  text-align: center;
+  padding: 24px;
+}
+
+.pmodal-retry-btn {
+  padding: 8px 20px;
+  background: var(--accent-primary, #e50914);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.pmodal-retry-btn:hover {
+  opacity: 0.85;
 }
 
 /* ── Meta section ── */
@@ -118,4 +282,5 @@
     border: none;
   }
   .pmodal-meta { padding: 12px 16px 16px; }
+  .pmodal-channel-name { max-width: 140px; }
 }

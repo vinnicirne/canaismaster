@@ -87,6 +87,19 @@ export function ChannelCard({ item, onClick }) {
         </div>
       )}
       <div className="channel-name">{item.title}</div>
+      {item.category && (
+        <div style={{
+          fontSize: '0.68rem',
+          color: 'var(--text-muted)',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          maxWidth: '100%',
+          opacity: 0.8,
+        }}>
+          {item.category}
+        </div>
+      )}
     </div>
   );
 }

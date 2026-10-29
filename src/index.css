@@ -879,12 +879,18 @@ body {
 
 .channel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--space-md);
   padding: 0 var(--space-xl) var(--space-2xl);
   max-width: 1600px;
   margin: 0 auto;
 }
+
+.channel-grid .channel-card,
+.channel-grid .skeleton-channel {
+  width: 100%;
+}
+
 
 /* ---- Filter Bar ---- */
 .filter-bar {
