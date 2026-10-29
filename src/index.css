@@ -1257,3 +1257,43 @@ body {
   color: var(--text-secondary);
 }
 
+/* ============================================
+   TV REMOTE NAVIGATION & SPATIAL FOCUS (LG webOS)
+   ============================================ */
+:focus {
+  outline: none;
+}
+
+:focus-visible,
+.media-card:focus,
+.channel-card:focus,
+.wh-card:focus,
+#hero-play-btn:focus,
+.btn-primary:focus,
+.btn-secondary:focus,
+.filter-btn:focus,
+.navbar-nav a:focus,
+.search-icon-btn:focus,
+.pmodal-server-btn:focus,
+.pmodal-retry-btn:focus,
+.sp-ep-card:focus,
+.sp-season-select:focus,
+.sp-panel-toggle:focus {
+  outline: 4px solid #e50914 !important;
+  outline-offset: 4px !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 30px rgba(229, 9, 20, 0.95), 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+  z-index: 100 !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, outline 0.15s ease !important;
+}
+
+/* Ensure card overlays become visible when card is focused on TV */
+.media-card:focus .media-card-overlay,
+.wh-card:focus .wh-play-overlay {
+  opacity: 1 !important;
+}
+
+.wh-card:focus .wh-remove-btn {
+  opacity: 1 !important;
+}
+

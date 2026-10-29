@@ -10,7 +10,18 @@ export function MediaCard({ item, onClick }) {
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="media-card" onClick={() => onClick(item)} id={`card-${item.id}`} tabIndex="0">
+    <div
+      className="media-card"
+      onClick={() => onClick(item)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+          e.preventDefault();
+          onClick(item);
+        }
+      }}
+      id={`card-${item.id}`}
+      tabIndex="0"
+    >
       {!imgError && item.poster ? (
         <img
           src={item.poster}
@@ -62,7 +73,18 @@ export function ChannelCard({ item, onClick }) {
   const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="channel-card" onClick={() => onClick(item)} id={`channel-${item.id}`} tabIndex="0">
+    <div
+      className="channel-card"
+      onClick={() => onClick(item)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.keyCode === 13) {
+          e.preventDefault();
+          onClick(item);
+        }
+      }}
+      id={`channel-${item.id}`}
+      tabIndex="0"
+    >
       <div className="channel-live-badge">
         <div className="channel-live-dot" />
         AO VIVO

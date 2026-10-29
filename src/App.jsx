@@ -7,6 +7,7 @@ import SeriesPage from './pages/SeriesPage';
 import ChannelsPage from './pages/ChannelsPage';
 import PlayerModal from './components/PlayerModal';
 import { requestFullscreenSafe } from './utils/fullscreen';
+import { initTvNavigation } from './utils/tvNavigation';
 
 function Footer() {
   return (
@@ -44,6 +45,11 @@ function NotFound() {
 export default function App() {
   const [globalPlayerItem, setGlobalPlayerItem] = useState(null);
 
+  // Initialize TV Remote Spatial Navigation (D-Pad & Enter & Back)
+  useEffect(() => {
+    initTvNavigation();
+  }, []);
+
   useEffect(() => {
     const handleGlobalPlay = (e) => {
       if (e.detail) {
@@ -54,6 +60,7 @@ export default function App() {
     window.addEventListener('mastercanais:play', handleGlobalPlay);
     return () => window.removeEventListener('mastercanais:play', handleGlobalPlay);
   }, []);
+
 
   return (
     <>

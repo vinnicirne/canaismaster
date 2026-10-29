@@ -91,6 +91,12 @@ export default function WatchHistoryRow({ items = [], onPlay, onRemove, onClear 
               key={item.id}
               className="wh-card"
               onClick={() => handleCardClick(item)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.keyCode === 13) {
+                  e.preventDefault();
+                  handleCardClick(item);
+                }
+              }}
               tabIndex="0"
               id={`wh-card-${item.id}`}
             >
