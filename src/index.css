@@ -1264,35 +1264,66 @@ body {
   outline: none;
 }
 
+.tv-focused,
 :focus-visible,
 .media-card:focus,
+.media-card.tv-focused,
 .channel-card:focus,
+.channel-card.tv-focused,
 .wh-card:focus,
+.wh-card.tv-focused,
 #hero-play-btn:focus,
+#hero-play-btn.tv-focused,
 .btn-primary:focus,
+.btn-primary.tv-focused,
 .btn-secondary:focus,
+.btn-secondary.tv-focused,
 .filter-btn:focus,
+.filter-btn.tv-focused,
 .navbar-nav a:focus,
+.navbar-nav a.tv-focused,
 .search-icon-btn:focus,
+.search-icon-btn.tv-focused,
 .pmodal-server-btn:focus,
+.pmodal-server-btn.tv-focused,
 .pmodal-retry-btn:focus,
+.pmodal-retry-btn.tv-focused,
 .sp-ep-card:focus,
+.sp-ep-card.tv-focused,
 .sp-season-select:focus,
-.sp-panel-toggle:focus {
-  outline: 4px solid #e50914 !important;
+.sp-season-select.tv-focused,
+.sp-panel-toggle:focus,
+.sp-panel-toggle.tv-focused {
+  outline: 5px solid #ff0033 !important;
   outline-offset: 4px !important;
-  transform: scale(1.08) !important;
-  box-shadow: 0 0 30px rgba(229, 9, 20, 0.95), 0 10px 30px rgba(0, 0, 0, 0.8) !important;
-  z-index: 100 !important;
+  transform: scale(1.10) !important;
+  box-shadow: 0 0 35px #ff0033, 0 0 15px #ffffff, 0 12px 40px rgba(0, 0, 0, 0.95) !important;
+  z-index: 9999 !important;
+  border-radius: 8px !important;
   transition: transform 0.15s ease, box-shadow 0.15s ease, outline 0.15s ease !important;
+  animation: tv-pulse-glow 1.4s ease-in-out infinite alternate !important;
+}
+
+@keyframes tv-pulse-glow {
+  0% {
+    outline-color: #ff0033;
+    box-shadow: 0 0 25px #ff0033, 0 0 10px #ffffff, 0 10px 30px rgba(0, 0, 0, 0.9);
+  }
+  100% {
+    outline-color: #ff3366;
+    box-shadow: 0 0 45px #ff0033, 0 0 20px #ff3366, 0 14px 45px rgba(0, 0, 0, 0.98);
+  }
 }
 
 /* Ensure card overlays become visible when card is focused on TV */
+.media-card.tv-focused .media-card-overlay,
 .media-card:focus .media-card-overlay,
+.wh-card.tv-focused .wh-play-overlay,
 .wh-card:focus .wh-play-overlay {
   opacity: 1 !important;
 }
 
+.wh-card.tv-focused .wh-remove-btn,
 .wh-card:focus .wh-remove-btn {
   opacity: 1 !important;
 }

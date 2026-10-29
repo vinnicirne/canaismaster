@@ -5,53 +5,96 @@
 
 let isInitialized = false;
 
+export function applyTvFocus(el) {
+  if (!el || typeof document === 'undefined') return;
+
+  document.querySelectorAll('.tv-focused').forEach(node => {
+    if (node !== el) node.classList.remove('tv-focused');
+  });
+
+  el.classList.add('tv-focused');
+
+  try {
+    if (document.activeElement !== el && typeof el.focus === 'function') {
+      el.focus();
+    }
+    el.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+  } catch {}
+}
+
+export function getFocusableElements() {
+  if (typeof document === 'undefined') return [];
+
+  // If player modal is open, restrict navigation strictly inside the modal
+  const activeModal = document.querySelector('#player-modal, #series-player-modal, .pmodal-content, .sp-modal');
+  const root = activeModal || document;
+
+  const selectors = [
+    '.media-card',
+    '.channel-card',
+    '.wh-card',
+    '#hero-play-btn',
+    '.btn-primary',
+    '.pmodal-server-btn',
+    '.pmodal-retry-btn',
+    '.sp-ep-card',
+    '.sp-season-select',
+    '.sp-panel-toggle',
+    '.filter-btn',
+    '.navbar-nav a',
+    '.search-icon-btn',
+    'button:not([disabled])',
+    'a[href]',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    '[tabindex="0"]',
+  ].join(', ');
+
+  const elements = Array.from(root.querySelectorAll(selectors));
+
+  return elements.filter(el => {
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+}
+
+export function ensureTvFocus() {
+  if (typeof document === 'undefined') return;
+
+  const currentFocused = document.querySelector('.tv-focused');
+  if (currentFocused && document.body.contains(currentFocused) && currentFocused !== document.body) {
+    return;
+  }
+
+  const focusables = getFocusableElements();
+  if (!focusables.length) return;
+
+  // Hero play button preferred first
+  const hero = document.getElementById('hero-play-btn');
+  if (hero && focusables.includes(hero)) {
+    applyTvFocus(hero);
+    return;
+  }
+
+  // Otherwise, first visible card
+  applyTvFocus(focusables[0]);
+}
+
 export function initTvNavigation() {
   if (typeof window === 'undefined' || isInitialized) return;
   isInitialized = true;
-
-  function getFocusableElements() {
-    // If player modal is open, restrict navigation inside the modal
-    const activeModal = document.querySelector('#player-modal, #series-player-modal, .pmodal-content, .sp-modal');
-    const root = activeModal || document;
-
-    const selectors = [
-      '.media-card',
-      '.channel-card',
-      '.wh-card',
-      '#hero-play-btn',
-      '.btn-primary',
-      '.pmodal-server-btn',
-      '.pmodal-retry-btn',
-      '.sp-ep-card',
-      '.sp-season-select',
-      '.sp-panel-toggle',
-      '.filter-btn',
-      '.navbar-nav a',
-      '.search-icon-btn',
-      'button:not([disabled])',
-      'a[href]',
-      'input:not([disabled])',
-      'select:not([disabled])',
-      '[tabindex="0"]',
-    ].join(', ');
-
-    const elements = Array.from(root.querySelectorAll(selectors));
-
-    return elements.filter(el => {
-      // Must be visible
-      const style = window.getComputedStyle(el);
-      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
-      const rect = el.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0;
-    });
-  }
 
   function findNextElement(currentEl, direction) {
     const focusables = getFocusableElements();
     if (!focusables.length) return null;
 
     if (!currentEl || currentEl === document.body || !focusables.includes(currentEl)) {
-      // Default to Hero button or first available card
       const hero = document.getElementById('hero-play-btn');
       if (hero && focusables.includes(hero)) return hero;
       return focusables[0];
@@ -121,18 +164,21 @@ export function initTvNavigation() {
     return bestCandidate;
   }
 
-  // Auto-focus first interactive element on initial load or navigation
-  function ensureInitialFocus() {
-    if (!document.activeElement || document.activeElement === document.body) {
-      const hero = document.getElementById('hero-play-btn');
-      if (hero) {
-        hero.focus();
-        return;
-      }
-      const first = getFocusableElements()[0];
-      if (first) first.focus();
+  // Sync focus class on all focus events
+  document.addEventListener('focusin', (e) => {
+    if (e.target && e.target !== document.body) {
+      document.querySelectorAll('.tv-focused').forEach(node => {
+        if (node !== e.target) node.classList.remove('tv-focused');
+      });
+      e.target.classList.add('tv-focused');
     }
-  }
+  }, true);
+
+  document.addEventListener('focusout', (e) => {
+    if (e.target) {
+      e.target.classList.remove('tv-focused');
+    }
+  }, true);
 
   // Key listener for TV Remote
   window.addEventListener('keydown', (e) => {
@@ -147,6 +193,7 @@ export function initTvNavigation() {
         e.preventDefault();
         e.stopPropagation();
         closePlayerBtn.click();
+        setTimeout(ensureTvFocus, 150);
         return;
       }
 
@@ -157,6 +204,7 @@ export function initTvNavigation() {
         if (toggleBtn) {
           e.preventDefault();
           toggleBtn.click();
+          setTimeout(ensureTvFocus, 150);
           return;
         }
       }
@@ -165,6 +213,7 @@ export function initTvNavigation() {
       if (window.location.pathname !== '/') {
         e.preventDefault();
         window.history.back();
+        setTimeout(ensureTvFocus, 200);
         return;
       }
 
@@ -179,38 +228,41 @@ export function initTvNavigation() {
     else if (key === 'ArrowUp' || keyCode === 38) dir = 'up';
 
     if (dir) {
-      const next = findNextElement(document.activeElement, dir);
+      const activeEl = document.querySelector('.tv-focused') || document.activeElement;
+      const next = findNextElement(activeEl, dir);
       if (next) {
         e.preventDefault();
-        next.focus();
-        // Ensure element is visible in horizontal/vertical scroll
-        try {
-          next.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest',
-            inline: 'center',
-          });
-        } catch {}
+        applyTvFocus(next);
+      } else {
+        ensureTvFocus();
       }
       return;
     }
 
     // ── OK / Enter button on remote (keyCode 13) ───────────────────────────
     if (key === 'Enter' || keyCode === 13) {
-      const cur = document.activeElement;
+      const cur = document.querySelector('.tv-focused') || document.activeElement;
       if (cur && cur !== document.body) {
-        // If not standard form element, trigger click
         if (cur.tagName !== 'BUTTON' && cur.tagName !== 'INPUT' && cur.tagName !== 'SELECT') {
           e.preventDefault();
           cur.click();
         }
       } else {
-        ensureInitialFocus();
+        ensureTvFocus();
       }
     }
   });
 
-  // Re-check initial focus when DOM changes or route switches
-  setTimeout(ensureInitialFocus, 500);
-  window.addEventListener('popstate', () => setTimeout(ensureInitialFocus, 300));
+  // Auto-focus loop to catch items as soon as network data renders
+  let checks = 0;
+  const loopTimer = setInterval(() => {
+    checks++;
+    if (document.querySelector('.tv-focused') || checks > 20) {
+      clearInterval(loopTimer);
+      return;
+    }
+    ensureTvFocus();
+  }, 300);
+
+  window.addEventListener('popstate', () => setTimeout(ensureTvFocus, 300));
 }

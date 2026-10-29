@@ -9,6 +9,7 @@ import WatchHistoryRow from '../components/WatchHistoryRow';
 import PlayerModal from '../components/PlayerModal';
 import { getWatchHistory, removeFromWatchHistory, clearWatchHistory } from '../history';
 import { requestFullscreenSafe } from '../utils/fullscreen';
+import { ensureTvFocus } from '../utils/tvNavigation';
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 const PlayIcon  = () => <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><polygon points="5 3 19 12 5 21"/></svg>;
@@ -148,6 +149,7 @@ export default function HomePage() {
         const list = res.results || [];
         setFeaturedMovies(list);
         setLoadingMovies(false);
+        setTimeout(ensureTvFocus, 250);
       })
       .catch(() => {
         setLoadingMovies(false);
@@ -176,6 +178,7 @@ export default function HomePage() {
       .then(data => {
         setChannels(data.slice(0, 32));
         setLoadingChannels(false);
+        setTimeout(ensureTvFocus, 300);
       })
       .catch(() => setLoadingChannels(false));
   }, []);

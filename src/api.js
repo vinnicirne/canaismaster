@@ -8,12 +8,12 @@
 export const IPTV_CONFIG = {
   name: 'NEWS TTR',
   servers: [
-    'http://newsttr2.cloud',
-    'http://newsttr2030.shop',
-    'http://newsttr4.cloud',
-    'http://newsttr5.cloud',
+    'https://newsttr2.cloud',
+    'https://newsttr2030.shop',
+    'https://newsttr4.cloud',
+    'https://newsttr5.cloud',
   ],
-  defaultServer: 'http://newsttr2.cloud',
+  defaultServer: 'https://newsttr2.cloud',
   username: '343121432',
   password: '635255733',
   webplayer: 'http://ttrweb.top/login.php',
@@ -23,6 +23,7 @@ export const IPTV_CONFIG = {
   shortHls: 'http://e.newsttr2029.news/p/343121432/635255733/hls',
   dnsStb: '54.39.74.145',
 };
+
 
 // ── Alternative Clean Embed URLs (No Cloudflare Captcha) ─────────────────────
 export function moviePlayerUrl(id, server = 0) {
@@ -611,7 +612,11 @@ export function playerUrlFromItem(item) {
   if (item.type === 'canal' || item.type === 'channel') {
     return channelPlayerUrl(item.stream_id || item.id);
   }
-  if (item.type === 'movie') {
+  if (item.type === 'movie' || (!item.type && !item.seasons)) {
+    if (item.stream_id) {
+      const ext = item.container_extension || 'mp4';
+      return `${IPTV_CONFIG.defaultServer}/movie/${IPTV_CONFIG.username}/${IPTV_CONFIG.password}/${item.stream_id}.${ext}`;
+    }
     return moviePlayerUrl(item.imdb_id || item.tmdb_id || item.id);
   }
   return seriePlayerUrl(item.tmdb_id || item.id, 1, 1);

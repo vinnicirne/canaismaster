@@ -20,24 +20,44 @@ function LiveOrMoviePlayer({ item, onClose }) {
   const [retryKey, setRetryKey] = useState(0);
 
   // Movie servers: 0 = NEWS TTR Direto (MP4), 1 = MultiEmbed, 2 = VidSrc
-  const [activeServer, setActiveServer] = useState(0);
-  const [directMovieStream, setDirectMovieStream] = useState(null);
-  const [searchingMovie, setSearchingMovie] = useState(false);
-
   const isChannel = (item.type || '').toLowerCase().includes('canal') || (item.type || '').toLowerCase().includes('channel');
   const isMovie = !isChannel && (item.type === 'movie' || (!item.type && !item.seasons));
   const defaultPlayerUrl = playerUrlFromItem(item);
   const tmdbId = item.imdb_id || item.tmdb_id || item.id;
 
-  // 1. Auto-enter fullscreen upon opening video
+  // Direct MP4 stream ready immediately from item properties
+  const initialMovieStream = (() => {
+    if (item.play_url && isMovie) return { play_url: item.play_url };
+    if (item.stream_id && isMovie) {
+      const ext = item.container_extension || 'mp4';
+      return {
+        play_url: `${IPTV_CONFIG.defaultServer}/movie/${IPTV_CONFIG.username}/${IPTV_CONFIG.password}/${item.stream_id}.${ext}`,
+      };
+    }
+    return null;
+  })();
+
+  const [activeServer, setActiveServer] = useState(0);
+  const [directMovieStream, setDirectMovieStream] = useState(initialMovieStream);
+  const [searchingMovie, setSearchingMovie] = useState(false);
+
+  // 1. Auto-enter fullscreen upon opening video & focus player
   useEffect(() => {
     requestFullscreenSafe(containerRef.current);
     saveWatchHistory(item);
+    // Focus video or close button for remote control
+    setTimeout(() => {
+      const el = videoRef.current || containerRef.current?.querySelector('button');
+      if (el) el.focus();
+    }, 150);
   }, [item]);
 
-  // Search NEWS TTR for movie on mount
+  // Search NEWS TTR for movie ONLY IF not already provided directly
   useEffect(() => {
-    if (!isMovie) return;
+    if (!isMovie || directMovieStream) {
+      setLoadingStream(false);
+      return;
+    }
 
     let mounted = true;
     setSearchingMovie(true);
@@ -57,11 +77,14 @@ function LiveOrMoviePlayer({ item, onClose }) {
         if (mounted) setActiveServer(1);
       })
       .finally(() => {
-        if (mounted) setSearchingMovie(false);
+        if (mounted) {
+          setSearchingMovie(false);
+          setLoadingStream(false);
+        }
       });
 
     return () => { mounted = false; };
-  }, [isMovie, item.title, item.original]);
+  }, [isMovie, item.title, item.original, directMovieStream]);
 
   // Handle safe close with fullscreen exit
   const handleClose = useCallback(() => {
@@ -106,7 +129,7 @@ function LiveOrMoviePlayer({ item, onClose }) {
 
     if (Hls.isSupported()) {
       const hls = new Hls({
-        enableWorker: true,
+        enableWorker: false, // Essential for LG webOS TV web workers stability
         lowLatencyMode: true,
         backBufferLength: 60,
         maxBufferLength: 30,
@@ -137,8 +160,18 @@ function LiveOrMoviePlayer({ item, onClose }) {
               break;
             default:
               hls.destroy();
-              setStreamError(true);
-              setLoadingStream(false);
+              // Native webOS TV fallback attempt
+              if (video) {
+                video.src = defaultPlayerUrl;
+                video.load();
+                video.play().catch(() => {
+                  setStreamError(true);
+                  setLoadingStream(false);
+                });
+              } else {
+                setStreamError(true);
+                setLoadingStream(false);
+              }
               break;
           }
         }
@@ -329,23 +362,58 @@ function LiveOrMoviePlayer({ item, onClose }) {
                 title={item.title}
                 onWaiting={() => setLoadingStream(true)}
                 onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={() => {
+                  setLoadingStream(false);
+                  setStreamError(false);
+                }}
                 onPlaying={() => {
                   setLoadingStream(false);
                   setStreamError(false);
                   requestFullscreenSafe(containerRef.current);
                 }}
-                onError={() => {
-                  console.warn('[DirectMovie] Stream error, switching to fallback server');
-                  setActiveServer(1);
+                onError={(e) => {
+                  console.warn('[DirectMovie] Stream error:', e);
+                  setStreamError(true);
+                  setLoadingStream(false);
                 }}
               />
 
-              {searchingMovie && (
+              {loadingStream && !streamError && (
                 <div className="pmodal-loading-overlay">
                   <div className="pmodal-spinner" />
                   <span style={{ fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.5px' }}>
-                    Localizando transmissão HD na sua lista NEWS TTR...
+                    Carregando filme {item.title}...
                   </span>
+                </div>
+              )}
+
+              {streamError && (
+                <div className="pmodal-error-box">
+                  <div style={{ fontSize: '2rem' }}>🎬</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+                    Erro ao reproduzir este filme diretamente
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', maxWidth: 360 }}>
+                    O arquivo pode estar indisponível no servidor no momento.
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+                    <button className="pmodal-retry-btn" onClick={() => {
+                      setStreamError(false);
+                      setLoadingStream(true);
+                      if (videoRef.current) {
+                        videoRef.current.load();
+                        videoRef.current.play().catch(() => {});
+                      }
+                    }}>
+                      Tentar Novamente
+                    </button>
+                    <button className="pmodal-retry-btn" style={{ background: 'rgba(255,255,255,0.15)' }} onClick={() => {
+                      setActiveServer(1);
+                      setStreamError(false);
+                    }}>
+                      Tentar MultiEmbed
+                    </button>
+                  </div>
                 </div>
               )}
             </>

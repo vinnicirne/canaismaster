@@ -335,7 +335,18 @@ export default function SeriesPlayer({ item, onClose }) {
           </div>
 
           <div className="sp-player-wrap">
-            {activeServer === 0 && directEpStream ? (
+            {loadingEpisodes && !directEpStream ? (
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: 14,
+                background: '#0d0d14', color: '#fff', zIndex: 10,
+              }}>
+                <div className="pmodal-spinner" />
+                <span style={{ fontSize: '0.95rem', fontWeight: 600 }}>
+                  Carregando episódios de {title}...
+                </span>
+              </div>
+            ) : activeServer === 0 && directEpStream ? (
               <video
                 ref={videoRef}
                 key={directEpStream.play_url}
